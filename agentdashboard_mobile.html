@@ -70,13 +70,13 @@
         // 👇👇 PASTE YOUR FIREBASE KEYS HERE 👇👇
         // ==========================================================
         const firebaseConfig = {
-              apiKey: "AIzaSyBAYXdb5CrlNOvI4VMEgg5XkdkDl7S6S-4",
-              authDomain: "bikroytracker.firebaseapp.com",
-              databaseURL: "https://bikroytracker-default-rtdb.firebaseio.com",
-              projectId: "bikroytracker",
-              storageBucket: "bikroytracker.firebasestorage.app",
-              messagingSenderId: "58720742362",
-              appId: "1:58720742362:web:a99c413e28b8a1f61eeee3"
+            apiKey: "AIzaSyBAYXdb5CrlNOvI4VMEgg5XkdkDl7S6S-4",
+            authDomain: "bikroytracker.firebaseapp.com",
+            databaseURL: "https://bikroytracker-default-rtdb.firebaseio.com",
+            projectId: "bikroytracker",
+            storageBucket: "bikroytracker.firebasestorage.app",
+            messagingSenderId: "58720742362",
+            appId: "1:58720742362:web:a99c413e28b8a1f61eeee3"
         };
         // ==========================================================
 
@@ -155,8 +155,10 @@
         function renderQueues(counts) {
             if(!counts) return;
             els.queues.innerHTML = '';
-            const keys = ['member', 'listing_fee', 'general', 'fraud', 'edited', 'verification'];
-             const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER' };
+            // ADDED: 'manager' to keys
+            const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification'];
+            // ADDED: 'manager': 'MGR' to labels
+            const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER' };
             
             keys.forEach(k => {
                 if(counts[k] !== undefined) {
