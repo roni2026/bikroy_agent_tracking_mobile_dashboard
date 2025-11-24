@@ -8,26 +8,24 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body { background-color: #0f172a; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
-        /* Mobile Optimizations */
-        .glass { background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .glass { background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Modal Animation */
+        .modal { transition: transform 0.3s ease-out; transform: translateY(100%); }
+        .modal.open { transform: translateY(0); }
     </style>
 </head>
 <body class="text-gray-200 min-h-screen flex flex-col pb-20">
 
-    <!-- Mobile Header -->
     <nav class="glass sticky top-0 z-50 px-4 py-3 flex justify-between items-center shadow-lg">
         <h1 class="text-lg font-bold text-white tracking-wider"><span class="text-blue-500">BIKROY</span> CMD</h1>
-        <div id="status-indicator" class="text-[10px] px-2 py-1 rounded bg-gray-800 text-gray-400 font-mono uppercase tracking-widest">
-            OFFLINE
-        </div>
+        <div id="status-indicator" class="text-[10px] px-2 py-1 rounded bg-gray-800 text-gray-400 font-mono uppercase tracking-widest">OFFLINE</div>
     </nav>
 
     <main class="flex-1 p-4">
-        <!-- Queue Stats (Compact View) -->
+        <!-- Queue Stats -->
         <div id="mobile-queues" class="flex flex-wrap gap-2 mb-6 justify-center">
-            <!-- Injected by JS -->
             <div class="text-gray-500 text-xs w-full text-center">Loading Queues...</div>
         </div>
 
@@ -36,29 +34,41 @@
             <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fas fa-play"></i> START TRACKING
             </button>
-            <button id="btn-stop" class="bg-red-900/50 active:bg-red-800 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">
-                STOP
-            </button>
-            <button id="btn-refresh" class="bg-gray-700 active:bg-gray-600 text-white py-3 rounded-xl font-semibold">
-                REFRESH
+            <button id="btn-stop" class="bg-red-900/50 active:bg-red-800 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">STOP</button>
+            <button id="btn-refresh" class="bg-gray-700 active:bg-gray-600 text-white py-3 rounded-xl font-semibold">REFRESH</button>
+            <!-- NEW LOG BUTTON -->
+            <button id="btn-logs" class="col-span-2 bg-indigo-800 active:bg-indigo-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+                <i class="fas fa-list-alt"></i> VIEW ACTIVITY LOGS
             </button>
         </div>
 
         <!-- Agents Grid -->
-        <div id="agent-grid" class="grid grid-cols-1 gap-4">
-            <!-- Injected by JS -->
-        </div>
+        <div id="agent-grid" class="grid grid-cols-1 gap-4"></div>
     </main>
 
-    <!-- Mobile Bottom Sheet for Selection -->
-    <div id="selector-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 transform translate-y-full transition-transform duration-300 z-50 h-[70vh] flex flex-col">
+    <!-- AGENT SELECTOR SHEET -->
+    <div id="selector-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[70vh] flex flex-col modal">
         <div class="p-4 border-b border-gray-800 flex justify-between items-center">
             <h3 class="font-bold text-white">Select Agents</h3>
-            <button id="close-selector" class="text-gray-400 text-xl">&times;</button>
+            <button id="close-selector" class="text-gray-400 text-2xl">&times;</button>
         </div>
         <div id="agent-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
         <div class="p-4 border-t border-gray-800">
             <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">CONFIRM START</button>
+        </div>
+    </div>
+
+    <!-- LOGS SHEET -->
+    <div id="logs-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[80vh] flex flex-col modal">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 rounded-t-2xl sticky top-0">
+            <h3 class="font-bold text-white"><i class="fas fa-history text-indigo-400 mr-2"></i>Activity Logs</h3>
+            <button id="close-logs" class="text-gray-400 text-2xl">&times;</button>
+        </div>
+        <div id="logs-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-900">
+            <!-- Logs injected here -->
+        </div>
+        <div class="p-4 border-t border-gray-800 bg-gray-900">
+            <button id="clear-logs" class="w-full bg-red-900/80 text-red-100 py-3 rounded-lg font-bold">CLEAR HISTORY</button>
         </div>
     </div>
 
@@ -70,13 +80,13 @@
         // 👇👇 PASTE YOUR FIREBASE KEYS HERE 👇👇
         // ==========================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBAYXdb5CrlNOvI4VMEgg5XkdkDl7S6S-4",
-            authDomain: "bikroytracker.firebaseapp.com",
-            databaseURL: "https://bikroytracker-default-rtdb.firebaseio.com",
-            projectId: "bikroytracker",
-            storageBucket: "bikroytracker.firebasestorage.app",
-            messagingSenderId: "58720742362",
-            appId: "1:58720742362:web:a99c413e28b8a1f61eeee3"
+            apiKey: "PASTE_YOUR_API_KEY_HERE",
+            authDomain: "PASTE_YOUR_AUTH_DOMAIN_HERE",
+            databaseURL: "PASTE_YOUR_DATABASE_URL_HERE",
+            projectId: "PASTE_YOUR_PROJECT_ID_HERE",
+            storageBucket: "PASTE_YOUR_STORAGE_BUCKET_HERE",
+            messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
+            appId: "PASTE_YOUR_APP_ID_HERE"
         };
         // ==========================================================
 
@@ -92,19 +102,23 @@
             btnStart: document.getElementById('btn-start'),
             btnStop: document.getElementById('btn-stop'),
             btnRefresh: document.getElementById('btn-refresh'),
+            btnLogs: document.getElementById('btn-logs'),
             sheet: document.getElementById('selector-sheet'),
+            logsSheet: document.getElementById('logs-sheet'),
             agentList: document.getElementById('agent-list'),
+            logsList: document.getElementById('logs-list'),
             closeSelector: document.getElementById('close-selector'),
-            confirmStart: document.getElementById('confirm-start')
+            closeLogs: document.getElementById('close-logs'),
+            confirmStart: document.getElementById('confirm-start'),
+            clearLogs: document.getElementById('clear-logs')
         };
 
-        // --- 1. LISTEN TO DATA (READ ONLY) ---
+        // --- 1. LISTEN TO DATA ---
         const statusRef = ref(db, 'status');
         onValue(statusRef, (snapshot) => {
             const data = snapshot.val();
             if(!data) return;
 
-            // Update Status
             if(data.isRunning) {
                 els.status.textContent = "ONLINE • TRACKING";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200 font-mono uppercase tracking-widest animate-pulse";
@@ -121,50 +135,69 @@
 
             renderQueues(data.reviewCounts);
             renderAgents(data.agentData);
+            window.sessionLogs = data.sessionLogs || [];
         });
 
-        // --- 2. SEND COMMANDS (WRITE ONLY) ---
+        // --- 2. UI LOGIC ---
         
-        els.btnStart.addEventListener('click', () => {
-            els.sheet.classList.remove('translate-y-full');
-            renderSelector();
-        });
+        // Agent Selector
+        els.btnStart.addEventListener('click', () => { els.sheet.classList.add('open'); renderSelector(); });
+        els.closeSelector.addEventListener('click', () => els.sheet.classList.remove('open'));
+        
+        // Logs
+        els.btnLogs.addEventListener('click', () => { els.logsSheet.classList.add('open'); renderLogs(window.sessionLogs); });
+        els.closeLogs.addEventListener('click', () => els.logsSheet.classList.remove('open'));
 
-        els.closeSelector.addEventListener('click', () => {
-            els.sheet.classList.add('translate-y-full');
-        });
-
+        // Commands
         els.confirmStart.addEventListener('click', () => {
             const selected = Array.from(document.querySelectorAll('.agent-cb:checked')).map(cb => cb.value);
             if(selected.length === 0) return alert("Select agent");
-            
-            // Send Command to Firebase
             set(ref(db, 'commands'), { action: 'start', payload: selected });
-            els.sheet.classList.add('translate-y-full');
+            els.sheet.classList.remove('open');
         });
 
-        els.btnStop.addEventListener('click', () => {
-            set(ref(db, 'commands'), { action: 'stop' });
+        els.btnStop.addEventListener('click', () => set(ref(db, 'commands'), { action: 'stop' }));
+        els.btnRefresh.addEventListener('click', () => set(ref(db, 'commands'), { action: 'refresh' }));
+        els.clearLogs.addEventListener('click', () => {
+            if(confirm("Clear log history?")) {
+                set(ref(db, 'commands'), { action: 'clearLogs' });
+                els.logsSheet.classList.remove('open');
+            }
         });
 
-        els.btnRefresh.addEventListener('click', () => {
-            set(ref(db, 'commands'), { action: 'refresh' });
-        });
+        // --- RENDERING ---
+        function renderLogs(logs) {
+            els.logsList.innerHTML = '';
+            if(!logs || logs.length === 0) {
+                els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No activity logs recorded.</div>';
+                return;
+            }
+            
+            logs.forEach(log => {
+                const isAlert = log.type === 'alert';
+                const row = document.createElement('div');
+                row.className = `p-3 rounded-lg border flex justify-between items-center ${isAlert ? 'bg-red-900/20 border-red-800' : 'bg-gray-800 border-gray-700'}`;
+                row.innerHTML = `
+                    <div>
+                        <div class="text-[10px] text-gray-400 font-mono">${log.time}</div>
+                        <div class="font-bold ${isAlert ? 'text-red-300' : 'text-gray-300'}">${log.agent}</div>
+                    </div>
+                    <div class="text-sm ${isAlert ? 'text-red-200' : 'text-gray-400'}">${log.msg}</div>
+                `;
+                els.logsList.appendChild(row);
+            });
+        }
 
-        // --- RENDERING HELPERS ---
         function renderQueues(counts) {
             if(!counts) return;
             els.queues.innerHTML = '';
-            // ADDED: 'manager' to keys
             const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification'];
-            // ADDED: 'manager': 'MGR' to labels
             const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER' };
             
             keys.forEach(k => {
                 if(counts[k] !== undefined) {
                     const isHigh = counts[k] > 50;
                     const div = document.createElement('div');
-                    // UPDATED: w-16 (smaller width) and text-lg (smaller font)
                     div.className = `flex-shrink-0 w-16 h-14 rounded-lg flex flex-col items-center justify-center border ${isHigh ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'}`;
                     div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k]}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
                     els.queues.appendChild(div);
@@ -175,27 +208,49 @@
         function renderAgents(data) {
             if(!data) return;
             els.grid.innerHTML = '';
+            const now = Date.now();
+            
             Object.keys(data).sort().forEach(name => {
                 const agent = data[name];
+                
+                // Inactivity Logic
+                const lastActive = agent.lastActiveTime || now;
+                const inactiveMs = now - lastActive;
+                const inactiveMins = Math.floor(inactiveMs / 60000);
+                const isInactive = inactiveMins >= 15;
+
+                const cardClass = isInactive 
+                    ? "bg-red-900/20 border-red-500 border rounded-xl p-4 transition duration-300" 
+                    : "bg-gray-800 border-gray-700 border rounded-xl p-4"; 
+
                 const card = document.createElement('div');
-                card.className = "bg-gray-800 rounded-xl p-4 border border-gray-700";
+                card.className = cardClass;
+                
+                let inactiveBadge = '';
+                if(isInactive) {
+                    inactiveBadge = `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Inactive: ${inactiveMins}m</span>`;
+                }
+
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-lg font-bold text-white">${name}</h3>
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-bold text-white">${name}</h3>
+                            ${inactiveBadge}
+                        </div>
                         <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700">${agent.permissions || '-'}</span>
                     </div>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="text-center bg-gray-900/50 rounded p-2">
                             <div class="text-xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500">Hr</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">This Hr</div>
                         </div>
                         <div class="text-center bg-gray-900/50 rounded p-2">
                              <div class="text-xl font-bold text-purple-400">${agent.lastHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500">Last</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Last Hr</div>
                         </div>
                         <div class="text-center bg-gray-900/50 rounded p-2">
                              <div class="text-xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500">Total</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Total Ads</div>
                         </div>
                     </div>
                 `;
