@@ -21,10 +21,12 @@
     </nav>
 
     <main class="flex-1 p-4">
+        <!-- Queues -->
         <div id="mobile-queues" class="flex flex-wrap gap-2 mb-6 justify-center">
-            <div class="text-gray-500 text-xs w-full text-center">Loading Queues...</div>
+            <div class="text-gray-500 text-xs w-full text-center">Waiting for Queues...</div>
         </div>
 
+        <!-- Controls -->
         <div class="grid grid-cols-2 gap-3 mb-6">
             <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg">
                 <i class="fas fa-play"></i> START TRACKING
@@ -36,8 +38,23 @@
             </button>
         </div>
 
+        <!-- Grid -->
         <div id="agent-grid" class="grid grid-cols-1 gap-4"></div>
     </main>
+
+    <!-- SELECTOR MODAL -->
+    <div id="selector-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[70vh] flex flex-col modal">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+            <h3 class="font-bold text-white">Select Agents</h3>
+            <button id="close-selector" class="text-gray-400 text-2xl">&times;</button>
+        </div>
+        <div id="agent-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+             <!-- Checkboxes injected here -->
+        </div>
+        <div class="p-4 border-t border-gray-800">
+            <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">CONFIRM START</button>
+        </div>
+    </div>
 
     <!-- LOGS MODAL -->
     <div id="logs-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[80vh] flex flex-col modal">
@@ -55,7 +72,6 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 
-        // PASTE YOUR CONFIG HERE
         const firebaseConfig = {
               apiKey: "AIzaSyBAYXdb5CrlNOvI4VMEgg5XkdkDl7S6S-4",
               authDomain: "bikroytracker.firebaseapp.com",
@@ -69,6 +85,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
+        // Full list for the selector
+        const agentsList = ["Mehedi", "Yeamin", "Utsow", "Udoy", "Salahuddin", "Halal", "Jisan", "Sarnali", "Asif", "Anik", "Riazul", "Sonjoy", "Roni"];
+
         const els = {
             status: document.getElementById('status-indicator'),
             queues: document.getElementById('mobile-queues'),
@@ -77,6 +96,10 @@
             btnStop: document.getElementById('btn-stop'),
             btnRefresh: document.getElementById('btn-refresh'),
             btnLogs: document.getElementById('btn-logs'),
+            sheet: document.getElementById('selector-sheet'),
+            agentList: document.getElementById('agent-list'),
+            closeSelector: document.getElementById('close-selector'),
+            confirmStart: document.getElementById('confirm-start'),
             logsSheet: document.getElementById('logs-sheet'),
             logsList: document.getElementById('logs-list'),
             closeLogs: document.getElementById('close-logs'),
@@ -91,13 +114,13 @@
             if(data.isRunning) {
                 els.status.textContent = "ONLINE • TRACKING";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200 font-mono uppercase tracking-widest animate-pulse";
-                els.btnStart.textContent = "TRACKING IN PROGRESS...";
+                els.btnStart.textContent = "TRACKING...";
                 els.btnStart.disabled = true;
                 els.btnStart.classList.add('opacity-50');
             } else {
-                els.status.textContent = "IDLE (WAITING)";
+                els.status.textContent = "IDLE (READY)";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-gray-700 text-gray-300 font-mono uppercase tracking-widest";
-                els.btnStart.innerHTML = '<i class="fas fa-play"></i> START TRACKING';
+                els.btnStart.innerHTML = '<i class="fas fa-play"></i> START';
                 els.btnStart.disabled = false;
                 els.btnStart.classList.remove('opacity-50');
             }
@@ -107,13 +130,28 @@
             window.sessionLogs = data.sessionLogs || [];
         });
 
+        // --- SELECTOR LOGIC ---
         els.btnStart.addEventListener('click', () => { 
-            // Send START command (bot handles agent list)
-            if(confirm("Start tracking all agents?")) {
-                set(ref(db, 'commands'), { action: 'start' });
-            }
+            els.sheet.classList.add('open'); 
+            els.agentList.innerHTML = agentsList.map(name => `
+                <label class="flex items-center space-x-4 p-3 rounded-lg bg-gray-800 active:bg-gray-700 border border-gray-700">
+                    <input type="checkbox" value="${name}" class="agent-cb w-5 h-5 accent-blue-600 rounded">
+                    <span class="text-white font-medium text-lg">${name}</span>
+                </label>
+            `).join('');
         });
         
+        els.closeSelector.addEventListener('click', () => els.sheet.classList.remove('open'));
+
+        els.confirmStart.addEventListener('click', () => {
+            const selected = Array.from(document.querySelectorAll('.agent-cb:checked')).map(cb => cb.value);
+            if(selected.length === 0) return alert("Select at least one agent.");
+            
+            // SEND START COMMAND WITH PAYLOAD
+            set(ref(db, 'commands'), { action: 'start', payload: selected });
+            els.sheet.classList.remove('open');
+        });
+
         els.btnLogs.addEventListener('click', () => { els.logsSheet.classList.add('open'); renderLogs(window.sessionLogs); });
         els.closeLogs.addEventListener('click', () => els.logsSheet.classList.remove('open'));
         els.btnStop.addEventListener('click', () => set(ref(db, 'commands'), { action: 'stop' }));
@@ -126,8 +164,7 @@
         function renderLogs(logs) {
             els.logsList.innerHTML = '';
             if(!logs || logs.length === 0) {
-                els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No logs.</div>';
-                return;
+                els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No logs.</div>'; return;
             }
             logs.forEach(log => {
                 const row = document.createElement('div');
@@ -163,8 +200,7 @@
             Object.keys(data).sort().forEach(name => {
                 const agent = data[name];
                 
-                // --- INACTIVITY LOGIC ---
-                // Calculate minutes since last ad increase
+                // INACTIVITY LOGIC (15 MINS)
                 const lastActive = agent.lastActiveTime || now;
                 const inactiveMs = now - lastActive;
                 const inactiveMins = Math.floor(inactiveMs / 60000);
@@ -175,7 +211,7 @@
                     : "bg-gray-800 border-gray-700 border rounded-xl p-4"; 
 
                 let inactiveBadge = isInactive 
-                    ? `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Inactive: ${inactiveMins}m</span>` 
+                    ? `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Idle: ${inactiveMins}m</span>` 
                     : '';
 
                 const card = document.createElement('div');
@@ -189,18 +225,18 @@
                             </div>
                             <span class="text-[10px] text-gray-400 font-mono mt-0.5">${hourLabel}</span>
                         </div>
-                        <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700 font-mono tracking-wider">
-                            ${agent.permissions || '...'}
+                        <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700 font-mono tracking-wider font-bold">
+                            ${agent.permissions || '-'}
                         </span>
                     </div>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
                             <div class="text-xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">Current Hr</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">This Hour</div>
                         </div>
                         <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
                              <div class="text-xl font-bold text-purple-400">${agent.lastHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">Last Hr</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Last Hour</div>
                         </div>
                         <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
                              <div class="text-xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
