@@ -9,9 +9,6 @@
     <style>
         body { background-color: #0f172a; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         .glass { background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Modal Animation */
         .modal { transition: transform 0.3s ease-out; transform: translateY(100%); }
         .modal.open { transform: translateY(0); }
     </style>
@@ -29,39 +26,26 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3 mb-6">
-            <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
+            <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg">
                 <i class="fas fa-play"></i> START TRACKING
             </button>
-            <button id="btn-stop" class="bg-red-900/50 active:bg-red-800 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">STOP</button>
-            <button id="btn-refresh" class="bg-gray-700 active:bg-gray-600 text-white py-3 rounded-xl font-semibold">REFRESH</button>
-            
-            <button id="btn-logs" class="col-span-2 bg-indigo-800 active:bg-indigo-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
-                <i class="fas fa-list-alt"></i> VIEW ACTIVITY LOGS
+            <button id="btn-stop" class="bg-red-900/50 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">STOP</button>
+            <button id="btn-refresh" class="bg-gray-700 text-white py-3 rounded-xl font-semibold">REFRESH</button>
+            <button id="btn-logs" class="col-span-2 bg-indigo-800 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+                <i class="fas fa-list-alt"></i> ACTIVITY LOGS
             </button>
         </div>
 
         <div id="agent-grid" class="grid grid-cols-1 gap-4"></div>
     </main>
 
-    <div id="selector-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[70vh] flex flex-col modal">
-        <div class="p-4 border-b border-gray-800 flex justify-between items-center">
-            <h3 class="font-bold text-white">Bot Configuration</h3>
-            <button id="close-selector" class="text-gray-400 text-2xl">&times;</button>
-        </div>
-        <div id="agent-list" class="flex-1 overflow-y-auto p-4 space-y-2 flex items-center justify-center text-center text-gray-400">
-             </div>
-        <div class="p-4 border-t border-gray-800">
-            <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">CONFIRM START</button>
-        </div>
-    </div>
-
+    <!-- LOGS MODAL -->
     <div id="logs-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[80vh] flex flex-col modal">
         <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 rounded-t-2xl sticky top-0">
-            <h3 class="font-bold text-white"><i class="fas fa-history text-indigo-400 mr-2"></i>Activity Logs</h3>
+            <h3 class="font-bold text-white">Activity Logs</h3>
             <button id="close-logs" class="text-gray-400 text-2xl">&times;</button>
         </div>
-        <div id="logs-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-900">
-            </div>
+        <div id="logs-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-900"></div>
         <div class="p-4 border-t border-gray-800 bg-gray-900">
             <button id="clear-logs" class="w-full bg-red-900/80 text-red-100 py-3 rounded-lg font-bold">CLEAR HISTORY</button>
         </div>
@@ -71,9 +55,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
 
-        // ==========================================================
-        // 👇👇 PASTE YOUR FIREBASE KEYS HERE 👇👇
-        // ==========================================================
+        // PASTE YOUR CONFIG HERE
         const firebaseConfig = {
               apiKey: "AIzaSyBAYXdb5CrlNOvI4VMEgg5XkdkDl7S6S-4",
               authDomain: "bikroytracker.firebaseapp.com",
@@ -83,7 +65,6 @@
               messagingSenderId: "58720742362",
               appId: "1:58720742362:web:a99c413e28b8a1f61eeee3"
         };
-        // ==========================================================
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
@@ -96,23 +77,17 @@
             btnStop: document.getElementById('btn-stop'),
             btnRefresh: document.getElementById('btn-refresh'),
             btnLogs: document.getElementById('btn-logs'),
-            sheet: document.getElementById('selector-sheet'),
             logsSheet: document.getElementById('logs-sheet'),
-            agentList: document.getElementById('agent-list'),
             logsList: document.getElementById('logs-list'),
-            closeSelector: document.getElementById('close-selector'),
             closeLogs: document.getElementById('close-logs'),
-            confirmStart: document.getElementById('confirm-start'),
             clearLogs: document.getElementById('clear-logs')
         };
 
-        // --- 1. LISTEN TO DATA ---
         const statusRef = ref(db, 'status');
         onValue(statusRef, (snapshot) => {
             const data = snapshot.val();
             if(!data) return;
 
-            // Update Status Bar
             if(data.isRunning) {
                 els.status.textContent = "ONLINE • TRACKING";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200 font-mono uppercase tracking-widest animate-pulse";
@@ -120,83 +95,51 @@
                 els.btnStart.disabled = true;
                 els.btnStart.classList.add('opacity-50');
             } else {
-                els.status.textContent = "IDLE (SERVER READY)";
+                els.status.textContent = "IDLE (WAITING)";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-gray-700 text-gray-300 font-mono uppercase tracking-widest";
                 els.btnStart.innerHTML = '<i class="fas fa-play"></i> START TRACKING';
                 els.btnStart.disabled = false;
                 els.btnStart.classList.remove('opacity-50');
             }
 
-            // Render Components
             renderQueues(data.reviewCounts);
-            renderAgents(data.agentData, data.timeLabel); // Pass timeLabel here!
+            renderAgents(data.agentData, data.timeLabel);
             window.sessionLogs = data.sessionLogs || [];
         });
 
-        // --- 2. UI LOGIC ---
-        
-        // Start Button (Open Sheet)
         els.btnStart.addEventListener('click', () => { 
-            els.sheet.classList.add('open'); 
-            renderSelector(); 
+            // Send START command (bot handles agent list)
+            if(confirm("Start tracking all agents?")) {
+                set(ref(db, 'commands'), { action: 'start' });
+            }
         });
-        els.closeSelector.addEventListener('click', () => els.sheet.classList.remove('open'));
         
-        // Logs Button
-        els.btnLogs.addEventListener('click', () => { 
-            els.logsSheet.classList.add('open'); 
-            renderLogs(window.sessionLogs); 
-        });
+        els.btnLogs.addEventListener('click', () => { els.logsSheet.classList.add('open'); renderLogs(window.sessionLogs); });
         els.closeLogs.addEventListener('click', () => els.logsSheet.classList.remove('open'));
-
-        // Confirm Start
-        els.confirmStart.addEventListener('click', () => {
-            // Send simple start command. The server bot knows who to track.
-            set(ref(db, 'commands'), { action: 'start' });
-            els.sheet.classList.remove('open');
-        });
-
-        // Other Controls
         els.btnStop.addEventListener('click', () => set(ref(db, 'commands'), { action: 'stop' }));
         els.btnRefresh.addEventListener('click', () => set(ref(db, 'commands'), { action: 'refresh' }));
         els.clearLogs.addEventListener('click', () => {
-            if(confirm("Clear log history?")) {
-                set(ref(db, 'commands'), { action: 'clearLogs' });
-                els.logsSheet.classList.remove('open');
-            }
+             set(ref(db, 'commands'), { action: 'clearLogs' });
+             els.logsSheet.classList.remove('open');
         });
-
-        // --- RENDERING FUNCTIONS ---
 
         function renderLogs(logs) {
             els.logsList.innerHTML = '';
             if(!logs || logs.length === 0) {
-                els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No activity logs recorded.</div>';
+                els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No logs.</div>';
                 return;
             }
             logs.forEach(log => {
-                const isAlert = log.type === 'alert';
                 const row = document.createElement('div');
-                row.className = `p-3 rounded-lg border flex justify-between items-center ${isAlert ? 'bg-red-900/20 border-red-800' : 'bg-gray-800 border-gray-700'}`;
-                row.innerHTML = `
-                    <div>
-                        <div class="text-[10px] text-gray-400 font-mono">${log.time}</div>
-                        <div class="font-bold ${isAlert ? 'text-red-300' : 'text-gray-300'}">${log.agent}</div>
-                    </div>
-                    <div class="text-sm ${isAlert ? 'text-red-200' : 'text-gray-400'}">${log.msg}</div>
-                `;
+                row.className = `p-3 rounded-lg border bg-gray-800 border-gray-700 mb-2 flex justify-between`;
+                row.innerHTML = `<div><span class="text-gray-400 text-xs">${log.time}</span> <span class="text-white font-bold ml-2">${log.agent}</span></div><div class="text-gray-400 text-sm">${log.msg}</div>`;
                 els.logsList.appendChild(row);
             });
         }
 
         function renderQueues(counts) {
-            if(!counts) {
-                els.queues.innerHTML = '<div class="text-gray-600 text-xs italic">Waiting for queue data...</div>';
-                return;
-            }
+            if(!counts) { els.queues.innerHTML = '<div class="text-gray-600 text-xs italic">Waiting...</div>'; return; }
             els.queues.innerHTML = '';
-            
-            // Standard Queues
             const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification', 'email'];
             const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER', 'email': 'MAIL' };
             
@@ -205,7 +148,7 @@
                     const isHigh = counts[k] > 50;
                     const div = document.createElement('div');
                     div.className = `flex-shrink-0 w-16 h-14 rounded-lg flex flex-col items-center justify-center border ${isHigh ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'}`;
-                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k] || k.toUpperCase()}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
+                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k]}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
                     els.queues.appendChild(div);
                 }
             });
@@ -215,14 +158,13 @@
             if(!data) return;
             els.grid.innerHTML = '';
             const now = Date.now();
-            
-            // Use timeLabel from bot, or fallback
-            const hourLabel = timeLabel || "Calculating...";
+            const hourLabel = timeLabel || "This Hour";
 
             Object.keys(data).sort().forEach(name => {
                 const agent = data[name];
                 
-                // Inactivity Logic (15 min threshold)
+                // --- INACTIVITY LOGIC ---
+                // Calculate minutes since last ad increase
                 const lastActive = agent.lastActiveTime || now;
                 const inactiveMs = now - lastActive;
                 const inactiveMins = Math.floor(inactiveMs / 60000);
@@ -232,14 +174,12 @@
                     ? "bg-red-900/20 border-red-500 border rounded-xl p-4 transition duration-300" 
                     : "bg-gray-800 border-gray-700 border rounded-xl p-4"; 
 
+                let inactiveBadge = isInactive 
+                    ? `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Inactive: ${inactiveMins}m</span>` 
+                    : '';
+
                 const card = document.createElement('div');
                 card.className = cardClass;
-                
-                let inactiveBadge = '';
-                if(isInactive) {
-                    inactiveBadge = `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Inactive: ${inactiveMins}m</span>`;
-                }
-
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-3">
                         <div class="flex flex-col">
@@ -250,36 +190,26 @@
                             <span class="text-[10px] text-gray-400 font-mono mt-0.5">${hourLabel}</span>
                         </div>
                         <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700 font-mono tracking-wider">
-                            ${agent.totalAds || 0}
+                            ${agent.permissions || '...'}
                         </span>
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-3 gap-2">
                         <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
-                            <div class="text-2xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">This Hour</div>
+                            <div class="text-xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Current Hr</div>
                         </div>
                         <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
-                             <div class="text-2xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">Session Total</div>
+                             <div class="text-xl font-bold text-purple-400">${agent.lastHourAds || 0}</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Last Hr</div>
+                        </div>
+                        <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
+                             <div class="text-xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Sess Total</div>
                         </div>
                     </div>
                 `;
                 els.grid.appendChild(card);
             });
-        }
-
-        function renderSelector() {
-            // Simplified selector message because Bot.js tracks all config agents
-            els.agentList.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full">
-                    <i class="fas fa-server text-4xl text-gray-600 mb-4"></i>
-                    <p class="text-gray-300 font-medium">Server-Side Tracking</p>
-                    <p class="text-gray-500 text-sm mt-2">
-                        The Node.js bot is configured to track all agents automatically.<br>
-                        Click "Confirm Start" to begin the tracking cycle.
-                    </p>
-                </div>
-            `;
         }
     </script>
 </body>
