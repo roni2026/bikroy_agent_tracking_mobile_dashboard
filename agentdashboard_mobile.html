@@ -24,49 +24,44 @@
     </nav>
 
     <main class="flex-1 p-4">
-        <!-- Queue Stats -->
         <div id="mobile-queues" class="flex flex-wrap gap-2 mb-6 justify-center">
             <div class="text-gray-500 text-xs w-full text-center">Loading Queues...</div>
         </div>
 
-        <!-- Controls -->
         <div class="grid grid-cols-2 gap-3 mb-6">
             <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-lg">
                 <i class="fas fa-play"></i> START TRACKING
             </button>
             <button id="btn-stop" class="bg-red-900/50 active:bg-red-800 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">STOP</button>
             <button id="btn-refresh" class="bg-gray-700 active:bg-gray-600 text-white py-3 rounded-xl font-semibold">REFRESH</button>
-            <!-- NEW LOG BUTTON -->
+            
             <button id="btn-logs" class="col-span-2 bg-indigo-800 active:bg-indigo-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
                 <i class="fas fa-list-alt"></i> VIEW ACTIVITY LOGS
             </button>
         </div>
 
-        <!-- Agents Grid -->
         <div id="agent-grid" class="grid grid-cols-1 gap-4"></div>
     </main>
 
-    <!-- AGENT SELECTOR SHEET -->
     <div id="selector-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[70vh] flex flex-col modal">
         <div class="p-4 border-b border-gray-800 flex justify-between items-center">
-            <h3 class="font-bold text-white">Select Agents</h3>
+            <h3 class="font-bold text-white">Bot Configuration</h3>
             <button id="close-selector" class="text-gray-400 text-2xl">&times;</button>
         </div>
-        <div id="agent-list" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+        <div id="agent-list" class="flex-1 overflow-y-auto p-4 space-y-2 flex items-center justify-center text-center text-gray-400">
+             </div>
         <div class="p-4 border-t border-gray-800">
             <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">CONFIRM START</button>
         </div>
     </div>
 
-    <!-- LOGS SHEET -->
     <div id="logs-sheet" class="fixed bottom-0 left-0 w-full bg-gray-900 rounded-t-2xl border-t border-gray-700 z-50 h-[80vh] flex flex-col modal">
         <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 rounded-t-2xl sticky top-0">
             <h3 class="font-bold text-white"><i class="fas fa-history text-indigo-400 mr-2"></i>Activity Logs</h3>
             <button id="close-logs" class="text-gray-400 text-2xl">&times;</button>
         </div>
         <div id="logs-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-900">
-            <!-- Logs injected here -->
-        </div>
+            </div>
         <div class="p-4 border-t border-gray-800 bg-gray-900">
             <button id="clear-logs" class="w-full bg-red-900/80 text-red-100 py-3 rounded-lg font-bold">CLEAR HISTORY</button>
         </div>
@@ -93,8 +88,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
-        const agentsList = ["Mehedi", "Yeamin", "Utsow", "Udoy", "Salahuddin", "Halal", "Jisan", "Sarnali", "Asif", "Anik", "Riazul", "Sonjoy", "Roni"];
-
         const els = {
             status: document.getElementById('status-indicator'),
             queues: document.getElementById('mobile-queues'),
@@ -119,6 +112,7 @@
             const data = snapshot.val();
             if(!data) return;
 
+            // Update Status Bar
             if(data.isRunning) {
                 els.status.textContent = "ONLINE • TRACKING";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200 font-mono uppercase tracking-widest animate-pulse";
@@ -126,36 +120,43 @@
                 els.btnStart.disabled = true;
                 els.btnStart.classList.add('opacity-50');
             } else {
-                els.status.textContent = "ONLINE • IDLE";
+                els.status.textContent = "IDLE (SERVER READY)";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-gray-700 text-gray-300 font-mono uppercase tracking-widest";
                 els.btnStart.innerHTML = '<i class="fas fa-play"></i> START TRACKING';
                 els.btnStart.disabled = false;
                 els.btnStart.classList.remove('opacity-50');
             }
 
+            // Render Components
             renderQueues(data.reviewCounts);
-            renderAgents(data.agentData);
+            renderAgents(data.agentData, data.timeLabel); // Pass timeLabel here!
             window.sessionLogs = data.sessionLogs || [];
         });
 
         // --- 2. UI LOGIC ---
         
-        // Agent Selector
-        els.btnStart.addEventListener('click', () => { els.sheet.classList.add('open'); renderSelector(); });
+        // Start Button (Open Sheet)
+        els.btnStart.addEventListener('click', () => { 
+            els.sheet.classList.add('open'); 
+            renderSelector(); 
+        });
         els.closeSelector.addEventListener('click', () => els.sheet.classList.remove('open'));
         
-        // Logs
-        els.btnLogs.addEventListener('click', () => { els.logsSheet.classList.add('open'); renderLogs(window.sessionLogs); });
+        // Logs Button
+        els.btnLogs.addEventListener('click', () => { 
+            els.logsSheet.classList.add('open'); 
+            renderLogs(window.sessionLogs); 
+        });
         els.closeLogs.addEventListener('click', () => els.logsSheet.classList.remove('open'));
 
-        // Commands
+        // Confirm Start
         els.confirmStart.addEventListener('click', () => {
-            const selected = Array.from(document.querySelectorAll('.agent-cb:checked')).map(cb => cb.value);
-            if(selected.length === 0) return alert("Select agent");
-            set(ref(db, 'commands'), { action: 'start', payload: selected });
+            // Send simple start command. The server bot knows who to track.
+            set(ref(db, 'commands'), { action: 'start' });
             els.sheet.classList.remove('open');
         });
 
+        // Other Controls
         els.btnStop.addEventListener('click', () => set(ref(db, 'commands'), { action: 'stop' }));
         els.btnRefresh.addEventListener('click', () => set(ref(db, 'commands'), { action: 'refresh' }));
         els.clearLogs.addEventListener('click', () => {
@@ -165,14 +166,14 @@
             }
         });
 
-        // --- RENDERING ---
+        // --- RENDERING FUNCTIONS ---
+
         function renderLogs(logs) {
             els.logsList.innerHTML = '';
             if(!logs || logs.length === 0) {
                 els.logsList.innerHTML = '<div class="text-gray-500 text-center mt-10">No activity logs recorded.</div>';
                 return;
             }
-            
             logs.forEach(log => {
                 const isAlert = log.type === 'alert';
                 const row = document.createElement('div');
@@ -189,31 +190,39 @@
         }
 
         function renderQueues(counts) {
-            if(!counts) return;
+            if(!counts) {
+                els.queues.innerHTML = '<div class="text-gray-600 text-xs italic">Waiting for queue data...</div>';
+                return;
+            }
             els.queues.innerHTML = '';
-            const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification'];
-            const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER' };
+            
+            // Standard Queues
+            const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification', 'email'];
+            const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER', 'email': 'MAIL' };
             
             keys.forEach(k => {
                 if(counts[k] !== undefined) {
                     const isHigh = counts[k] > 50;
                     const div = document.createElement('div');
                     div.className = `flex-shrink-0 w-16 h-14 rounded-lg flex flex-col items-center justify-center border ${isHigh ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'}`;
-                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k]}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
+                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k] || k.toUpperCase()}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
                     els.queues.appendChild(div);
                 }
             });
         }
 
-        function renderAgents(data) {
+        function renderAgents(data, timeLabel) {
             if(!data) return;
             els.grid.innerHTML = '';
             const now = Date.now();
             
+            // Use timeLabel from bot, or fallback
+            const hourLabel = timeLabel || "Calculating...";
+
             Object.keys(data).sort().forEach(name => {
                 const agent = data[name];
                 
-                // Inactivity Logic
+                // Inactivity Logic (15 min threshold)
                 const lastActive = agent.lastActiveTime || now;
                 const inactiveMs = now - lastActive;
                 const inactiveMins = Math.floor(inactiveMs / 60000);
@@ -233,24 +242,25 @@
 
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-3">
-                        <div class="flex items-center">
-                            <h3 class="text-lg font-bold text-white">${name}</h3>
-                            ${inactiveBadge}
+                        <div class="flex flex-col">
+                            <div class="flex items-center">
+                                <h3 class="text-lg font-bold text-white">${name}</h3>
+                                ${inactiveBadge}
+                            </div>
+                            <span class="text-[10px] text-gray-400 font-mono mt-0.5">${hourLabel}</span>
                         </div>
-                        <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700">${agent.permissions || '-'}</span>
+                        <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700 font-mono tracking-wider">
+                            ${agent.totalAds || 0}
+                        </span>
                     </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="text-center bg-gray-900/50 rounded p-2">
-                            <div class="text-xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">This Hr</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
+                            <div class="text-2xl font-bold text-blue-400">${agent.thisHourAds || 0}</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">This Hour</div>
                         </div>
-                        <div class="text-center bg-gray-900/50 rounded p-2">
-                             <div class="text-xl font-bold text-purple-400">${agent.lastHourAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">Last Hr</div>
-                        </div>
-                        <div class="text-center bg-gray-900/50 rounded p-2">
-                             <div class="text-xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
-                            <div class="text-[8px] uppercase text-gray-500 font-bold">Total Ads</div>
+                        <div class="text-center bg-gray-900/50 rounded p-2 border border-gray-700/50">
+                             <div class="text-2xl font-bold text-green-400">${agent.cumulativeNewAds || 0}</div>
+                            <div class="text-[8px] uppercase text-gray-500 font-bold">Session Total</div>
                         </div>
                     </div>
                 `;
@@ -259,12 +269,17 @@
         }
 
         function renderSelector() {
-            els.agentList.innerHTML = agentsList.map(name => `
-                <label class="flex items-center space-x-4 p-3 rounded-lg bg-gray-800 active:bg-gray-700">
-                    <input type="checkbox" value="${name}" class="agent-cb w-5 h-5 accent-blue-600">
-                    <span class="text-white font-medium">${name}</span>
-                </label>
-            `).join('');
+            // Simplified selector message because Bot.js tracks all config agents
+            els.agentList.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full">
+                    <i class="fas fa-server text-4xl text-gray-600 mb-4"></i>
+                    <p class="text-gray-300 font-medium">Server-Side Tracking</p>
+                    <p class="text-gray-500 text-sm mt-2">
+                        The Node.js bot is configured to track all agents automatically.<br>
+                        Click "Confirm Start" to begin the tracking cycle.
+                    </p>
+                </div>
+            `;
         }
     </script>
 </body>
