@@ -28,12 +28,12 @@
 
         <!-- Controls -->
         <div class="grid grid-cols-2 gap-3 mb-6">
-            <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg">
+            <button id="btn-start" class="col-span-2 bg-blue-600 active:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg transition-all">
                 <i class="fas fa-play"></i> START TRACKING
             </button>
-            <button id="btn-stop" class="bg-red-900/50 text-red-200 py-3 rounded-xl border border-red-800 font-semibold">STOP</button>
-            <button id="btn-refresh" class="bg-gray-700 text-white py-3 rounded-xl font-semibold">REFRESH</button>
-            <button id="btn-logs" class="col-span-2 bg-indigo-800 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+            <button id="btn-stop" class="bg-red-900/50 text-red-200 py-3 rounded-xl border border-red-800 font-semibold transition-all">STOP</button>
+            <button id="btn-refresh" class="bg-gray-700 text-white py-3 rounded-xl font-semibold transition-all">REFRESH</button>
+            <button id="btn-logs" class="col-span-2 bg-indigo-800 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all">
                 <i class="fas fa-list-alt"></i> ACTIVITY LOGS
             </button>
         </div>
@@ -52,7 +52,9 @@
              <!-- Checkboxes injected here -->
         </div>
         <div class="p-4 border-t border-gray-800">
-            <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">CONFIRM START</button>
+            <button id="confirm-start" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
+                CONFIRM START
+            </button>
         </div>
     </div>
 
@@ -64,7 +66,9 @@
         </div>
         <div id="logs-list" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-900"></div>
         <div class="p-4 border-t border-gray-800 bg-gray-900">
-            <button id="clear-logs" class="w-full bg-red-900/80 text-red-100 py-3 rounded-lg font-bold">CLEAR HISTORY</button>
+            <button id="clear-logs" class="w-full bg-red-900/80 text-red-100 py-3 rounded-lg font-bold flex items-center justify-center gap-2">
+                CLEAR HISTORY
+            </button>
         </div>
     </div>
 
@@ -85,7 +89,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
-        // Full list for the selector
         const agentsList = ["Mehedi", "Yeamin", "Utsow", "Udoy", "Salahuddin", "Halal", "Jisan", "Sarnali", "Asif", "Anik", "Riazul", "Sonjoy", "Roni"];
 
         const els = {
@@ -106,23 +109,78 @@
             clearLogs: document.getElementById('clear-logs')
         };
 
+        // State to track loading buttons
+        let loadingStates = {
+            start: false,
+            stop: false,
+            refresh: false,
+            clearLogs: false
+        };
+
+        // Helper to set button loading
+        function setButtonLoading(btn, isLoading, defaultText, iconClass = '') {
+            if (isLoading) {
+                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`;
+                btn.disabled = true;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                btn.innerHTML = iconClass ? `<i class="${iconClass}"></i> ${defaultText}` : defaultText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        // --- 1. LISTEN TO DATA ---
         const statusRef = ref(db, 'status');
         onValue(statusRef, (snapshot) => {
             const data = snapshot.val();
+            
+            // Reset loading states when we get new data (Server responded)
+            if (data) {
+                // Reset Refresh Button
+                if (loadingStates.refresh) {
+                    loadingStates.refresh = false;
+                    setButtonLoading(els.btnRefresh, false, 'REFRESH');
+                }
+                // Reset Stop Button (if stopped)
+                if (loadingStates.stop && !data.isRunning) {
+                    loadingStates.stop = false;
+                    setButtonLoading(els.btnStop, false, 'STOP');
+                }
+                // Reset Start Button (if started)
+                if (loadingStates.start && data.isRunning) {
+                    loadingStates.start = false;
+                    // Note: Start button stays disabled by the status logic below, which is correct
+                }
+            }
+
             if(!data) return;
 
             if(data.isRunning) {
                 els.status.textContent = "ONLINE • TRACKING";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-green-900 text-green-200 font-mono uppercase tracking-widest animate-pulse";
-                els.btnStart.textContent = "TRACKING...";
+                els.btnStart.innerHTML = '<i class="fas fa-satellite-dish fa-spin"></i> TRACKING...';
                 els.btnStart.disabled = true;
                 els.btnStart.classList.add('opacity-50');
+                
+                // Stop button should be enabled if running
+                if (!loadingStates.stop) {
+                    els.btnStop.disabled = false;
+                    els.btnStop.classList.remove('opacity-50');
+                }
             } else {
                 els.status.textContent = "IDLE (READY)";
                 els.status.className = "text-[10px] px-2 py-1 rounded bg-gray-700 text-gray-300 font-mono uppercase tracking-widest";
-                els.btnStart.innerHTML = '<i class="fas fa-play"></i> START';
-                els.btnStart.disabled = false;
-                els.btnStart.classList.remove('opacity-50');
+                
+                if (!loadingStates.start) {
+                    els.btnStart.innerHTML = '<i class="fas fa-play"></i> START TRACKING';
+                    els.btnStart.disabled = false;
+                    els.btnStart.classList.remove('opacity-50');
+                }
+                
+                // Stop button disabled if idle
+                els.btnStop.disabled = true;
+                els.btnStop.classList.add('opacity-50');
             }
 
             renderQueues(data.reviewCounts);
@@ -130,7 +188,9 @@
             window.sessionLogs = data.sessionLogs || [];
         });
 
-        // --- SELECTOR LOGIC ---
+        // --- 2. UI INTERACTION ---
+
+        // Open Selector
         els.btnStart.addEventListener('click', () => { 
             els.sheet.classList.add('open'); 
             els.agentList.innerHTML = agentsList.map(name => `
@@ -143,23 +203,53 @@
         
         els.closeSelector.addEventListener('click', () => els.sheet.classList.remove('open'));
 
+        // Confirm Start
         els.confirmStart.addEventListener('click', () => {
             const selected = Array.from(document.querySelectorAll('.agent-cb:checked')).map(cb => cb.value);
             if(selected.length === 0) return alert("Select at least one agent.");
             
-            // SEND START COMMAND WITH PAYLOAD
-            set(ref(db, 'commands'), { action: 'start', payload: selected });
-            els.sheet.classList.remove('open');
+            // Set Loading
+            loadingStates.start = true;
+            setButtonLoading(els.confirmStart, true, 'CONFIRM START'); // Inner button loading
+            
+            set(ref(db, 'commands'), { action: 'start', payload: selected })
+                .then(() => {
+                    els.sheet.classList.remove('open');
+                    setButtonLoading(els.confirmStart, false, 'CONFIRM START'); // Reset inner button
+                    // Outer button handled by status listener
+                });
         });
 
+        // Stop
+        els.btnStop.addEventListener('click', () => {
+            loadingStates.stop = true;
+            setButtonLoading(els.btnStop, true, 'STOP');
+            set(ref(db, 'commands'), { action: 'stop' });
+        });
+
+        // Refresh
+        els.btnRefresh.addEventListener('click', () => {
+            loadingStates.refresh = true;
+            setButtonLoading(els.btnRefresh, true, 'REFRESH');
+            set(ref(db, 'commands'), { action: 'refresh' });
+        });
+
+        // Logs & Clear
         els.btnLogs.addEventListener('click', () => { els.logsSheet.classList.add('open'); renderLogs(window.sessionLogs); });
         els.closeLogs.addEventListener('click', () => els.logsSheet.classList.remove('open'));
-        els.btnStop.addEventListener('click', () => set(ref(db, 'commands'), { action: 'stop' }));
-        els.btnRefresh.addEventListener('click', () => set(ref(db, 'commands'), { action: 'refresh' }));
+        
         els.clearLogs.addEventListener('click', () => {
-             set(ref(db, 'commands'), { action: 'clearLogs' });
-             els.logsSheet.classList.remove('open');
+             loadingStates.clearLogs = true;
+             setButtonLoading(els.clearLogs, true, 'CLEAR HISTORY');
+             set(ref(db, 'commands'), { action: 'clearLogs' })
+                .then(() => {
+                    loadingStates.clearLogs = false;
+                    setButtonLoading(els.clearLogs, false, 'CLEAR HISTORY');
+                    els.logsSheet.classList.remove('open');
+                });
         });
+
+        // --- RENDERING ---
 
         function renderLogs(logs) {
             els.logsList.innerHTML = '';
@@ -177,16 +267,44 @@
         function renderQueues(counts) {
             if(!counts) { els.queues.innerHTML = '<div class="text-gray-600 text-xs italic">Waiting...</div>'; return; }
             els.queues.innerHTML = '';
-            // Short Labels for Queue Display
+            
             const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification', 'email'];
             const labels = { 'member': 'M', 'listing_fee': 'L', 'general': 'G', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'E', 'verification': 'V', 'email': 'MAIL' };
             
             keys.forEach(k => {
                 if(counts[k] !== undefined) {
-                    const isHigh = counts[k] > 50;
+                    const count = counts[k];
+                    let colorClass = "bg-gray-800 border-gray-700"; // Default Grey
+                    let textClass = "text-white"; // Default White
+
+                    // COLOR LOGIC
+                    if (k === 'member' || k === 'listing_fee') { // M, L
+                        if (count > 20) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                        else textClass = "text-gray-400"; // Grey
+                    } 
+                    else if (k === 'general') { // G
+                        if (count > 250) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                        else if (count >= 200) { colorClass = "bg-yellow-900/40 border-yellow-500"; textClass = "text-yellow-400"; }
+                        else textClass = "text-gray-400"; // Grey
+                    }
+                    else if (k === 'manager') { // MGR
+                        if (count > 100) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                    }
+                    else if (k === 'fraud') { // FRD
+                        if (count > 70) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                    }
+                    else if (k === 'edited') { // E
+                        if (count > 250) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                        else if (count >= 150) { colorClass = "bg-yellow-900/40 border-yellow-500"; textClass = "text-yellow-400"; }
+                    }
+                    else if (k === 'verification') { // V
+                        if (count > 2000) { colorClass = "bg-red-900/40 border-red-500"; textClass = "text-red-400"; }
+                        else if (count >= 1500) { colorClass = "bg-yellow-900/40 border-yellow-500"; textClass = "text-yellow-400"; }
+                    }
+
                     const div = document.createElement('div');
-                    div.className = `flex-shrink-0 w-16 h-14 rounded-lg flex flex-col items-center justify-center border ${isHigh ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'}`;
-                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k]}</span><span class="text-lg font-bold text-white">${counts[k]}</span>`;
+                    div.className = `flex-shrink-0 w-16 h-14 rounded-lg flex flex-col items-center justify-center border ${colorClass}`;
+                    div.innerHTML = `<span class="text-[9px] text-gray-400 font-bold">${labels[k]}</span><span class="text-lg font-bold ${textClass}">${count}</span>`;
                     els.queues.appendChild(div);
                 }
             });
@@ -216,10 +334,8 @@
                     : '';
 
                 // --- FILTER PERMISSIONS ---
-                // Only show M, L, G, V, E, MGR, FRD, MAIL
                 let permText = agent.permissions || '-';
                 const validCodes = ['M', 'L', 'G', 'V', 'E', 'MGR', 'FRD', 'MAIL'];
-                // If permText is a string like "M L G Search for...", split and filter
                 if (permText !== '-' && permText !== 'N/A') {
                     const parts = permText.split(' ');
                     const filtered = parts.filter(code => validCodes.includes(code));
