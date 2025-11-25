@@ -177,8 +177,9 @@
         function renderQueues(counts) {
             if(!counts) { els.queues.innerHTML = '<div class="text-gray-600 text-xs italic">Waiting...</div>'; return; }
             els.queues.innerHTML = '';
+            // Short Labels for Queue Display
             const keys = ['member', 'listing_fee', 'general', 'manager', 'fraud', 'edited', 'verification', 'email'];
-            const labels = { 'member': 'MEM', 'listing_fee': 'LIST', 'general': 'GEN', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'EDIT', 'verification': 'VER', 'email': 'MAIL' };
+            const labels = { 'member': 'M', 'listing_fee': 'L', 'general': 'G', 'manager': 'MGR', 'fraud': 'FRD', 'edited': 'E', 'verification': 'V', 'email': 'MAIL' };
             
             keys.forEach(k => {
                 if(counts[k] !== undefined) {
@@ -214,6 +215,17 @@
                     ? `<span class="ml-2 text-[10px] bg-red-600 text-white px-2 py-0.5 rounded animate-pulse font-bold">Idle: ${inactiveMins}m</span>` 
                     : '';
 
+                // --- FILTER PERMISSIONS ---
+                // Only show M, L, G, V, E, MGR, FRD, MAIL
+                let permText = agent.permissions || '-';
+                const validCodes = ['M', 'L', 'G', 'V', 'E', 'MGR', 'FRD', 'MAIL'];
+                // If permText is a string like "M L G Search for...", split and filter
+                if (permText !== '-' && permText !== 'N/A') {
+                    const parts = permText.split(' ');
+                    const filtered = parts.filter(code => validCodes.includes(code));
+                    permText = filtered.length > 0 ? filtered.join(' ') : '-';
+                }
+
                 const card = document.createElement('div');
                 card.className = cardClass;
                 card.innerHTML = `
@@ -226,7 +238,7 @@
                             <span class="text-[10px] text-gray-400 font-mono mt-0.5">${hourLabel}</span>
                         </div>
                         <span class="text-xs bg-gray-900 px-2 py-1 rounded text-purple-400 border border-gray-700 font-mono tracking-wider font-bold">
-                            ${agent.permissions || '-'}
+                            ${permText}
                         </span>
                     </div>
                     <div class="grid grid-cols-3 gap-2">
